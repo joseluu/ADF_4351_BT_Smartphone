@@ -18,7 +18,7 @@ It is programmed using the arduino IDE after having done the proper setup:
 - https://esp-idf.readthedocs.io/en/latest/get-started/index.html
 
 The smartphone is programmed using the MIT appinventor system, create an account here: http://ai2.appinventor.mit.edu
-the import the file adf4351.aia
+then import the file adf4351.aia
 
 Programming with appinventor:
 The interface composer screen:
