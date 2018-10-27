@@ -14,8 +14,8 @@ https://www.banggood.com/16-Mt-Bytes-128-Mt-bit-Pro-ESP32-OLED-V2_0-TTGO-For-Ard
 
 It is programmed using the arduino IDE after having done the proper setup:
 
-https://github.com/espressif/arduino-esp32
-https://esp-idf.readthedocs.io/en/latest/get-started/index.html
+- https://github.com/espressif/arduino-esp32
+- https://esp-idf.readthedocs.io/en/latest/get-started/index.html
 
 The smartphone is programmed using the MIT appinventor system, create an account here: http://ai2.appinventor.mit.edu
 the import the file adf4351.aia
