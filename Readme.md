@@ -1,6 +1,6 @@
 # Another ADF4351 controller
 
-This project allows remote configuration of an ADF4351 breakout board from a smartphone.
+This project allows remote configuration of an ADF4351 eval board from a smartphone.
 
 Smartphone talks bluetooth to an ESP32 module which in turn talks SPI to the module.
 
@@ -26,3 +26,5 @@ The interface composer screen:
 
 The programming screen:
 ![alt_text](./MIT_Appinventor_block_programming.PNG)
+
+Comments and pull requests welcomed
