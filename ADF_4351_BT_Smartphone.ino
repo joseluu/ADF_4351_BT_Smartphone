@@ -4,6 +4,7 @@
 #include "EEPROM.h"
 #include "BluetoothSerial.h"
 #include <JsonParser.h>
+#include <driver/dac.h>
 
 SSD1306Wire display(0x3c, 4, 15);
 char message[100];
@@ -134,6 +135,10 @@ void setup() {
   pinMode(SYNC_PIN, OUTPUT);  
   pinMode(SYNC2_PIN, OUTPUT);  
   pinMode(SYNC3_PIN, OUTPUT);  
+
+  dac_output_enable(DAC_CHANNEL_1); // pin 25
+  dac_output_voltage(DAC_CHANNEL_1, 0);
+
  
   ADF4351_Init(referenceFrequency);
 
@@ -165,6 +170,7 @@ void doCommand(CSweepParameters sweepParameters){
   if (sweepFlag) {
     SweepTimerStop();
   }
+  dac_output_voltage(DAC_CHANNEL_1, 0);
   SetCurrentFrequency(sweepParameters.current);
   RF_OUT();
   if (sweepParameters.sweepOn) {
@@ -335,47 +341,48 @@ void StartSweep(unsigned long Start,
 
     SweepCurrentFreq = Start_Fre_value;
     Sweep_DIR_Flag = 0;
-    RF_Fre_Value = Start;
+    RF_Fre_Value = Start_Fre_value;
     RF_OUT();
     
+    dac_output_voltage(DAC_CHANNEL_1, 0);
+
     SweepTimerStart();
   }
 }
 
 
-void SweepTimerTick(void){ // interrupt processing routine
-  unsigned long temp = Sweep_Time_value; // adjustment needed here ?
-  if (Sweep_Time_Counter++ >= temp) {
+void SweepTimerTick(void){ // interrupt processing routine, every usec
+  if (Sweep_Time_Counter++ >= Sweep_Time_value) { // wait until the counter reaches Sweep_Time_Value
     Sweep_Time_Counter = 0;
     if (Sweep_DIR_Flag == 0) {
       SweepCurrentFreq += Delta_Fre_value;
 
-      SweepProgress((int)percentSweep);
       percentSweep += percentSweepIncrement;
       if (percentSweep >= 100){
         percentSweep = 100;
-        SweepProgress((int)percentSweep);
       }   
       
-      if (SweepCurrentFreq >= Stop_Fre_value) {
+      if (SweepCurrentFreq >= (Stop_Fre_value - Delta_Fre_value/10.0)) {
         SweepCurrentFreq = Stop_Fre_value;
         percentSweep = 100;
         Sweep_DIR_Flag = 1;
       }
-      SweepProgress(percentSweep);
     } else {
       SweepCurrentFreq -= Delta_Fre_value;
-
+      
       percentSweep -= percentSweepIncrement;
       if (percentSweep <= 0) {
         percentSweep = 0;
       }   
-      SweepProgress(percentSweep);
-      if (SweepCurrentFreq <= Start_Fre_value) {
+      if (SweepCurrentFreq <= (Start_Fre_value + Delta_Fre_value/10.0)) {
         SweepCurrentFreq = Start_Fre_value;
+        percentSweep=0;
         Sweep_DIR_Flag = 0;
       }
     }
+    SweepProgress(percentSweep);
+    dac_output_voltage(DAC_CHANNEL_1, percentSweep*2.55);
+
     RF_Fre_Value =  SweepCurrentFreq;
     RF_OUT();
   }
