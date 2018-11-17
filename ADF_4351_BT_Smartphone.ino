@@ -239,7 +239,6 @@ void loop() {
   delayMicroseconds(100);
 }
 
-
 void displayStatus()
 {
 // this function takes 3ms
@@ -346,6 +345,7 @@ void StartSweep(unsigned long Start,
     
     dac_output_voltage(DAC_CHANNEL_1, 0);
 
+    setFastLockTimer(20,g_sweepParameters.refClk);
     SweepTimerStart();
   }
 }
@@ -460,29 +460,48 @@ void RF_OUT(void)
 
 void reset_all_reg(int referenceFrequency)
 {
-  Register_Buf[5]=0x00580005;  // set digital lock detect 
+//[DB23:DB22] = 01 digital lock detect
+#define LDPIN_DIGITAL_LOCK_DETECT 1
+//[DB20:DB19] = 11 reserved
+#define RESERVED_11 0x3
+  Register_Buf[5]= LDPIN_DIGITAL_LOCK_DETECT << 22 | RESERVED_11 << 19 | 0x00000005;
 
 //(DB23=1)The signal is taken from the VCO directly;
 //(DB22-20:4H) the RF divider is 8;
 //(DB19-12:50H) band select clock divider: 08
 //(DB11=0)VCO powerd up;
-//(DB5=1)RF output is enabled;(DB4-3=3H)Output power level is 5
-  Register_Buf[4]=0x00c0803c;
+//(DB5=1)RF output is enabled;
+#define RF_ENABLE 1
+//(DB4-3=3H)Output power level is 5
+#define OUTPUT_LEVEL_5 0x3
+  Register_Buf[4]=0x00c08038 | 0x00000004;
 
+// Register 3
+//(DB23=1) Band Select Clock Mode for fast lock and > 125KHz PFD freq
+//[DB16:DB15] = 01 to activate fast lock;
 #define CLOCK_DIVIDER 1000 // KHz resolution
-  Register_Buf[3]=0x00000003 | CLOCK_DIVIDER << 3;
+  Register_Buf[3]= (1<<23)  | CLOCK_DIVIDER << 3 | 0x00000003;
+
+// Register 2
 #define R_COUNTER referenceFrequency  // 1 MHz PFD
 #define DOUBLE_BUFFER 1
+//[DB30:DB29] = 11 low spur mode;
+//[DB28:DB26] 101= analog lock detect  110= digital lock detect
+#define ANALOG_LOCK_DETECT 0x5
+#define DIGITAL_LOCK_DETECT 0x6
+#define LOW_SPUR 0x3
 //(DB6=1)set PD polarity is positive;
-//(DB7=1)LDP is 6nS;
+#define PDP 1
+//(DB7=0)LDP is 10nS  (DB8,DB7)=(0,0) recommended for fractional-N;
 //(DB8=0)enable fractional-N digital lock detect;
 //(DB12-9:7H)set Icp 2.50 mA;
-  Register_Buf[2] = 0x000000E42 | DOUBLE_BUFFER << 13 | R_COUNTER << 14;
+#define CP25 0x7
+  Register_Buf[2] = (LOW_SPUR<<29) | DIGITAL_LOCK_DETECT<< 26 | CP25 << 9 | PDP << 6 | DOUBLE_BUFFER << 13 | R_COUNTER << 14 | 0x00000002;
 
 #define PRESCALER_8_9 1
 #define PHASE_VALUE 1
 #define MODULUS_VALUE 1000 // so that we get KHz resolution
-  Register_Buf[1]=0x00000001 | PRESCALER_8_9 << 27 | PHASE_VALUE << 15 | MODULUS_VALUE << 3;
+  Register_Buf[1]= PRESCALER_8_9 << 27 | PHASE_VALUE << 15 | MODULUS_VALUE << 3 | 0x00000001;
 
 #define INTEGER_VALUE 100 // MHz
 #define FRACTIONAL_VALUE 0 // KHz
@@ -491,6 +510,13 @@ void reset_all_reg(int referenceFrequency)
   for (int i=0;i<6;i++){
     Register_Previous[i] = 0;
   }
+}
+
+void setFastLockTimer(unsigned int microSeconds, unsigned int refClk)
+{ // see page 22 of datasheet
+  //[DB16:DB15] = 01 to setup fast lock timer;
+  unsigned int timerValue=(20+microSeconds)*(refClk * 1000000)/MODULUS_VALUE;
+    Register_Buf[3]= (1<<15) | 0x00000003 | timerValue << 3;
 }
 
 void WriteRegister32(const unsigned long *value)   //Programme un registre 32bits
